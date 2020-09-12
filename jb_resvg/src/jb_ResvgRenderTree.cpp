@@ -158,6 +158,11 @@ bool RenderTree::loadFromBinaryData (const char* data, size_t size)
     return true;
 }
 
+bool RenderTree::isValid()
+{
+    return tree != nullptr;
+}
+
 juce::Rectangle<int> RenderTree::getSize()
 {
     if (tree == nullptr)

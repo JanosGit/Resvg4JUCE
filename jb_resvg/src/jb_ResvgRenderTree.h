@@ -81,6 +81,9 @@ public:
     /** Parses an SVG file from binary data into this tree. Returns true on success, false otherwise */
     bool loadFromBinaryData (const char* data, size_t size);
 
+    /** Returns true if a file has been successfully loaded into this tree */
+    bool isValid();
+
     /** Returns the size that is stored in the SVG. Returns an empty rectangle if no SVG has been loaded yet */
     juce::Rectangle<int> getSize();
 

@@ -48,14 +48,14 @@ void MainComponent::filesDropped (const juce::StringArray& files, int, int)
 {
     juce::File newSVGFile (files[0]);
 
-    auto newSVGComponent = jb::SVGComponent::make (newSVGFile);
+    jb::Resvg::RenderTree tree;
 
-    if (newSVGComponent != nullptr)
+    if (tree.loadFromFile (newSVGFile))
     {
         if (svg != nullptr)
             removeChildComponent (svg.get());
 
-        svg = std::move (newSVGComponent);
+        svg = std::make_unique<jb::SVGComponent> (std::move (tree));
 
         addAndMakeVisible (*svg);
 

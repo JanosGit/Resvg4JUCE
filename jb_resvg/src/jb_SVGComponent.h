@@ -7,6 +7,8 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 */
 
+#include <jb_resvg/jb_resvg.h>
+
 namespace jb
 {
 
@@ -18,31 +20,43 @@ class SVGComponent : public juce::Component
 {
 public:
 
+    /**
+     * Creates an SVGComponent from an svg file. You have to make sure that this is a valid svg, otherwise
+     * behaviour is undefined
+     */
     SVGComponent (const juce::File& svgFile)
     {
-        svg.loadFromFile (svgFile);
+        auto successLoading = svg.loadFromFile (svgFile);
+
+        jassert (successLoading);
+        juce::ignoreUnused (successLoading);
     }
 
+    /**
+     * Creates an SVGComponent from an binary data. You have to make sure that this is a valid svg, otherwise
+     * behaviour is undefined
+     */
     SVGComponent (const char* svgData, size_t svgSize)
     {
-        svg.loadFromBinaryData (svgData, svgSize);
+        auto successLoading = svg.loadFromBinaryData (svgData, svgSize);
+
+        jassert (successLoading);
+        juce::ignoreUnused (successLoading);
     }
 
-    static std::unique_ptr<SVGComponent> make (const juce::File& svgFile)
+    /** Creates an SVGComponent from a pre-generated svgRenderTree */
+    SVGComponent (Resvg::RenderTree&& svgRenderTree) : svg (std::move (svgRenderTree))
     {
-        std::unique_ptr<SVGComponent> c (new SVGComponent());
-
-        if (c->svg.loadFromFile (svgFile))
-            return c;
-
-        return nullptr;
+        jassert (svg.isValid());
     }
 
+    /** Sets how the image generated from the SVG is placed on the components surface */
     void setImagePlacement (juce::RectanglePlacement placement)
     {
         imagePlacement = placement;
     }
 
+    /** Returns how the image generated from the SVG is placed on the components surface */
     juce::RectanglePlacement getImagePlacement()
     {
         return imagePlacement;
@@ -63,7 +77,6 @@ public:
     {
         g.drawImage (cachedImage, getLocalBounds().toFloat(), imagePlacement);
     }
-
 
 private:
     SVGComponent() {}
