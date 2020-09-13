@@ -21,7 +21,7 @@ public:
     bool moreThanOneInstanceAllowed() override             { return true; }
 
     //==============================================================================
-    void initialise (const juce::String& commandLine) override
+    void initialise (const juce::String& /* commandLine */) override
     {
         // This method is where you should put your application's initialisation code..
 

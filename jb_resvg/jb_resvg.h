@@ -27,6 +27,7 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
   dependencies:     juce_gui_basics
 
   OSXLibs:          resvg
+  windowsLibs:      resvg userenv
 
  END_JUCE_MODULE_DECLARATION
 

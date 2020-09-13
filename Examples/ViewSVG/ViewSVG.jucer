@@ -28,8 +28,7 @@
     </LINUX_MAKE>
     <VS2019 targetFolder="Builds/VisualStudio2019">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="ViewSVG"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="ViewSVG"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="ViewSVG" useRuntimeLibDLL="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="../../../../SDKs/JUCE/modules"/>
@@ -65,5 +64,6 @@
   </MODULES>
   <LIVE_SETTINGS>
     <OSX/>
+    <WINDOWS/>
   </LIVE_SETTINGS>
 </JUCERPROJECT>
