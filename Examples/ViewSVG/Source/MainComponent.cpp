@@ -13,8 +13,6 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (juce::Graphics& g)
 {
-    // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
     g.fillCheckerBoard (getLocalBounds().toFloat(), 20, 20, juce::Colours::white, juce::Colours::lightgrey);
 
     if (svg == nullptr)
