@@ -64,7 +64,9 @@ public:
 
     void resized() override
     {
-        auto newImageBounds = getLocalBounds().toFloat() * getDesktopScaleFactor();
+        auto scale = juce::Desktop::getInstance().getDisplays().findDisplayForPoint (getBounds().getCentre()).scale;
+
+        auto newImageBounds = getLocalBounds().toFloat() * scale;
 
         if (newImageBounds == cachedImageBounds)
             return;
