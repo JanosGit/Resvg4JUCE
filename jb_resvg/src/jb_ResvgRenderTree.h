@@ -79,7 +79,7 @@ public:
     bool loadFromFile (const juce::File& svgFile);
 
     /** Parses an SVG file from binary data into this tree. Returns true on success, false otherwise */
-    bool loadFromBinaryData (const char* data, size_t size);
+    bool loadFromBinaryData (const char* data, int size);
 
     /** Returns true if a file has been successfully loaded into this tree */
     bool isValid();

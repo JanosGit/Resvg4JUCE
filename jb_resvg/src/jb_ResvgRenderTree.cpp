@@ -68,9 +68,9 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
     auto* srcData = reinterpret_cast<ResvgRGBA*> (const_cast<char*> (resvg_image_get_data (resvgImage, &nBytes)));
 
     // todo: is there a better way than this loop?
-    for (uint32_t y = 0; y < h; ++y)
+    for (int y = 0; y < static_cast<int> (h); ++y)
     {
-        for (uint32_t x = 0; x < w; ++x)
+        for (int x = 0; x < static_cast<int> (w); ++x)
         {
             auto px = *srcData++;
             dstData.setPixelColour (x, y, juce::Colour (px.r, px.g, px.b, px.a));
@@ -142,12 +142,12 @@ bool RenderTree::loadFromFile (const juce::File& svgFile)
     return true;
 }
 
-bool RenderTree::loadFromBinaryData (const char* data, size_t size)
+bool RenderTree::loadFromBinaryData (const char* data, int size)
 {
     if (tree != nullptr)
         resvg_tree_destroy ((resvg_render_tree*) tree);
 
-    auto result = resvg_parse_tree_from_data (data, size, (resvg_options*) options, (resvg_render_tree**) &tree);
+    auto result = resvg_parse_tree_from_data (data, static_cast<size_t>(size), (resvg_options*) options, (resvg_render_tree**) &tree);
 
     if (result != RESVG_OK || tree == nullptr)
     {

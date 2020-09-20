@@ -36,7 +36,7 @@ public:
      * Creates an SVGComponent from an binary data. You have to make sure that this is a valid svg, otherwise
      * behaviour is undefined
      */
-    SVGComponent (const char* svgData, size_t svgSize)
+    SVGComponent (const char* svgData, int svgSize)
     {
         auto successLoading = svg.loadFromBinaryData (svgData, svgSize);
 
