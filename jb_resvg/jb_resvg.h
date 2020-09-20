@@ -39,3 +39,4 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "src/jb_ResvgRenderTree.h"
 #include "src/jb_SVGComponent.h"
+#include "src/jb_SVGButton.h"
