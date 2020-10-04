@@ -197,10 +197,6 @@ juce::Image RenderTree::render (float zoomFactor, juce::Colour backgroundColour)
 
 juce::Image RenderTree::render (const juce::Rectangle<float>& dstSize, juce::Colour backgroundColour)
 {
-    // x/y offset is not supported
-    jassert (dstSize.getX() == 0.0f);
-    jassert (dstSize.getY() == 0.0f);
-
     auto dstAspectRatio = dstSize.getAspectRatio();
     auto srcAspectRatio = getAspectRatio();
 
