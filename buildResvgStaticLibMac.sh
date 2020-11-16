@@ -3,6 +3,8 @@
 # change to the c-api folder
 cd Ext/resvg/c-api
 
+export MACOSX_DEPLOYMENT_TARGET=10.7
+
 # build the library
 cargo build --release
 
