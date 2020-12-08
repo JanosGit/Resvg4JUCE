@@ -18,42 +18,29 @@ project (RESVG4JUCE VERSION 0.2.0)
 set (RESVG_LIB_OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/target/release/deps)
 
 if (WIN32)
-    if (CMAKE_BUILD_TYPE MATCHES DEBUG)
-        set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.dll)
-    else()
-        set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.lib)
-    endif()
+    set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.lib)
 else()
-    sset (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
+    set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
 endif()
 
 file (MAKE_DIRECTORY ${RESVG_LIB_OUTPUT_DIR})
 file (TOUCH ${RESVG_LIB_OUTPUT})
 
-# Except for Windows debug builds we always want a static library
-if (WIN32 AND (CMAKE_BUILD_TYPE STREQUAL DEBUG))
-    set (RESVG_CRATE_TYPE cdylib)
-    add_library (resvg SHARED IMPORTED)
-    message ("Linking against dynamic resvg library for debug build")
-else()
-    set (RESVG_CRATE_TYPE staticlib)
-    add_library (resvg STATIC IMPORTED)
-    message ("sddjhc")
-endif()
-
-
-# The target to trigger the rust cargo based compilation of the resvg library used
+# The target to trigger the rust cargo based compilation of the resvg library used.
+# For macOS we need to ensure the C-Parts of it being built for the right deployment
+# target by setting an environment variable first
 if (APPLE)
     add_custom_target (resvg_cargo_build
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
+            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo rustc --release -- --crate-type staticlib)
 else()
      add_custom_target (resvg_cargo_build
             WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
+            COMMAND cargo rustc --release -- --crate-type staticlib)
 endif()
 
-# Make the imported target created above referencing the library just built
+# Make an imported targe that references the library just built
+add_library (resvg STATIC IMPORTED)
 add_dependencies (resvg resvg_cargo_build)
 set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT})
 target_include_directories (resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api)
