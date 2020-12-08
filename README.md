@@ -4,6 +4,21 @@ A JUCE module that wraps the resvg SVG rendering library in a JUCE compatible in
 This is an attempt to use resvg to overcome problems with the JUCE integrated SVG rendering facility. It comes with two important classes:
 `jb::Resvg::RenderTree`, which encapsulates a subset of the original resvg interface in a convenient C++ class. It allows rendering SVG files to a `juce::Image`. `jb::SVGComponent` is a `juce::Component` that owns a render tree and automatically displays the rendered image on the components surface.
 
-As resvg is a rust library, we need to include it as a precompiled library. For simplicity, this repository already contains a precompiled static library for MacOS, for Windows there is a script included to build it yourself and copy it to the desired place. In order to build the lib yourself, you have to clone the resvg submodule, which points to my own fork, that is only modified in such a way that it outputs a staic library rather than a dynamic one. You'll obviously need rust build tools and (not so obviously) need clang-cl on Windows, as resvg is based on a striped-down version of skia, which can only be compiled with clang.
+While being built for JUCE, this module is not desgined to work with the Projucer but only with the newer CMake based build of JUCE. Usage is pretty simple:
 
-Due to my lack of rust know-how I failed to get another build configuration than /MD working on Windows at the moment. All hints regarding what can be done about this are welcome!
+```
+# Add JUCE in one of the recomended ways before this line
+
+# Make your projects CMakeList.txt find Resvg4JUCE
+add_subdirectory (Path/To/Resvg4JUCE)
+
+# Create a plugin or standalone juce target
+juce_add_xy (Foo ...)
+
+# Link Resvg4JUCE to that target
+target_link_libraries (Foo jb::Resvg4JUCE)
+```
+
+As resvg is a rust library, your build machine needs all the rust build tools. The rust sources of the library will be compiled into a static library that will be  linked to your target. Note for Windows users: Rust libraries are always compiled against the dynamic linked Visual C++ runtime. Please make sure that you'll link your whole project against the dynamic runtime and not the static one, other combinations are likely to fail with compiling at all.
+
+The resvg library is currently still work in progress, consisting of some pure rust sources and some third party C library dependencies. The maintainers are currently working on replacing those dependencies with pure rust solutions which will likely increase performance over time. I'll update that dependency from time to time.
