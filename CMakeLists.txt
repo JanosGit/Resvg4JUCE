@@ -12,41 +12,51 @@ cmake_minimum_required (VERSION 3.16)
 
 project (RESVG4JUCE VERSION 0.2.0)
 
-# Except for Windows debug builds we always want a static library
-if (WIN32 AND (CMAKE_BUILD_TYPE MATCHES DEBUG))
-    set (RESVG_CRATE_TYPE cdylib)
-    add_library (resvg SHARED IMPORTED)
-else()
-    set (RESVG_CRATE_TYPE staticlib)
-    add_library (resvg STATIC IMPORTED)
-endif()
-
-# The target to trigger the rust cargo based compilation of the resvg library used
-if (APPLE)
-    add_custom_target (resvg_cargo
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
-else()
-    add_custom_target (resvg_cargo
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
-endif()
-
-# This is where carco rustc places the compiled library
+# Some CMake exporters (e.g. ninja) need a dummy library file to be present before the 
+# build target referencing this file and triggering the prior build has been executed.
+# Therefore we create a dummy library output file here first
 set (RESVG_LIB_OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/target/release/deps)
 
 if (WIN32)
     if (CMAKE_BUILD_TYPE MATCHES DEBUG)
-        set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT_DIR}/libresvg.dll)
+        set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.dll)
     else()
-        set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT_DIR}/libresvg.lib)
+        set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.lib)
     endif()
 else()
-    set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
+    sset (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
 endif()
 
-target_include_directories(resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api)
-add_dependencies (resvg resvg_cargo)
+file (MAKE_DIRECTORY ${RESVG_LIB_OUTPUT_DIR})
+file (TOUCH ${RESVG_LIB_OUTPUT})
+
+# Except for Windows debug builds we always want a static library
+if (WIN32 AND (CMAKE_BUILD_TYPE STREQUAL DEBUG))
+    set (RESVG_CRATE_TYPE cdylib)
+    add_library (resvg SHARED IMPORTED)
+    message ("Linking against dynamic resvg library for debug build")
+else()
+    set (RESVG_CRATE_TYPE staticlib)
+    add_library (resvg STATIC IMPORTED)
+    message ("sddjhc")
+endif()
+
+
+# The target to trigger the rust cargo based compilation of the resvg library used
+if (APPLE)
+    add_custom_target (resvg_cargo_build
+            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
+            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
+else()
+     add_custom_target (resvg_cargo_build
+            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
+            COMMAND cargo rustc --release -- --crate-type ${RESVG_CRATE_TYPE})
+endif()
+
+# Make the imported target created above referencing the library just built
+add_dependencies (resvg resvg_cargo_build)
+set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT})
+target_include_directories (resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api)
 
 # Create the Resvg4JUCE juce module target. This depends on the resvg library created above and on the juce_gui_basics module
 juce_add_module (Modules/Resvg4JUCE)
