@@ -19,4 +19,8 @@ juce_add_xy (Foo ...)
 target_link_libraries (Foo jb::Resvg4JUCE)
 ```
 
-As resvg is a rust library, your build machine needs all the rust build tools. The rust sources of the library will be compiled into a static library that will be  linked to your target. Note for Windows users: Rust libraries are always compiled against the dynamic linked Visual C++ runtime. Please make sure that you'll link your whole project against the dynamic runtime and not the static one, other combinations are likely to fail with compiling at all.
+As resvg is a rust library, your build machine needs all the rust build tools. The rust sources of the library will be compiled into a static library that will be  linked to your target. 
+
+Note for Windows: Rust libraries are always compiled against the dynamic linked Visual C++ runtime. Please make sure that you'll link your whole project against the dynamic runtime and not the static one, other combinations are likely to fail with compiling at all.
+
+Note for macOS: The library is built as universal binary for x86_64 and arm64. To compile for arm64 Xcode 12.2 or later is required. The mininum deployment target is set to macOS 10.7
