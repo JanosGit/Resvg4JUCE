@@ -1,5 +1,5 @@
 # Resvg4JUCE
-A JUCE module that wraps the resvg SVG rendering library in a JUCE compatible interface
+A JUCE module that wraps the resvg SVG rendering library in a JUCE compatible interface.  The project is currently based on resvg 0.19.0.
 
 This is an attempt to use resvg to overcome problems with the JUCE integrated SVG rendering facility. It comes with two important classes:
 `jb::Resvg::RenderTree`, which encapsulates a subset of the original resvg interface in a convenient C++ class. It allows rendering SVG files to a `juce::Image`. `jb::SVGComponent` is a `juce::Component` that owns a render tree and automatically displays the rendered image on the components surface.
@@ -20,5 +20,3 @@ target_link_libraries (Foo jb::Resvg4JUCE)
 ```
 
 As resvg is a rust library, your build machine needs all the rust build tools. The rust sources of the library will be compiled into a static library that will be  linked to your target. Note for Windows users: Rust libraries are always compiled against the dynamic linked Visual C++ runtime. Please make sure that you'll link your whole project against the dynamic runtime and not the static one, other combinations are likely to fail with compiling at all.
-
-The resvg library is currently still work in progress, consisting of some pure rust sources and some third party C library dependencies. The maintainers are currently working on replacing those dependencies with pure rust solutions which will likely increase performance over time. I'll update that dependency from time to time.

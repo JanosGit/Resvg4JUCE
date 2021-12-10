@@ -109,7 +109,7 @@ public:
      * the destination rectangle passed, as this call always preserves the apsect ratio of the original SVG.
      * The background can be either fully transparent or a fully solid colour.
      */
-    juce::Image render (const juce::Rectangle<float>& dstSize, juce::Colour backgroundColour = juce::Colours::transparentBlack);
+    juce::Image render (juce::Rectangle<float> dstSize, juce::Colour backgroundColour = juce::Colours::transparentBlack);
 
 
 private:

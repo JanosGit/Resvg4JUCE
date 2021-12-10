@@ -38,23 +38,23 @@ static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_SPEED      == to<resvg_image_rende
 static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY    == to<resvg_image_rendering> (ImageRenderingMode::optimizeQuality), "");
 
 // Internal function to perform the actual rendering behind the various RenderTree::render functions
-juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour)
+juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour, juce::Rectangle<int>&& imageBounds)
 {
     // Before rendering an SVG you need to have successfully loaded one into the tree
     jassert (tree != nullptr);
 
-    resvg_color c { backgroundColour.getRed(), backgroundColour.getGreen(), backgroundColour.getBlue() };
+    const auto h = imageBounds.getHeight();
+    const auto w = imageBounds.getWidth();
 
-    resvg_color* bgColour = backgroundColour.isTransparent() ? nullptr : &c;
+    juce::Image image (juce::Image::PixelFormat::ARGB, w, h, false);
+    image.clear (imageBounds, backgroundColour);
 
-    auto* resvgImage = resvg_render (tree, fit, bgColour);
-    jassert (resvgImage != nullptr);
+    juce::Image::BitmapData dstData (image, 0, 0, w, h, juce::Image::BitmapData::ReadWriteMode::writeOnly);
 
-    auto h = resvg_image_get_height (resvgImage);
-    auto w = resvg_image_get_width  (resvgImage);
-
-    juce::Image image (juce::Image::PixelFormat::ARGB, static_cast<int> (w), static_cast<int> (h), false);
-    juce::Image::BitmapData dstData (image, 0, 0, int (w), int (h), juce::Image::BitmapData::ReadWriteMode::writeOnly);
+    resvg_render (tree, fit,
+                  static_cast<uint32_t> (w),
+                  static_cast<uint32_t> (h),
+                  reinterpret_cast<char*> (dstData.data));
 
     // This is how resvg lays out the pixel data
     struct ResvgRGBA
@@ -65,23 +65,40 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
         uint8_t a;
     };
 
-    size_t nBytes = sizeof (ResvgRGBA) * w * h;
-
-    auto* srcData = reinterpret_cast<ResvgRGBA*> (const_cast<char*> (resvg_image_get_data (resvgImage, &nBytes)));
-
-    // todo: is there a better way than this loop?
-    for (int y = 0; y < static_cast<int> (h); ++y)
+    union RGBAConversion
     {
-        for (int x = 0; x < static_cast<int> (w); ++x)
+        ResvgRGBA src;
+        juce::PixelARGB dst;
+    };
+
+    for (int y = 0; y < h; ++y)
+    {
+        auto *pixel = reinterpret_cast<RGBAConversion*> (dstData.getLinePointer (y));
+
+        for (int i = 0; i < w; ++i)
         {
-            auto px = *srcData++;
-            dstData.setPixelColour (x, y, juce::Colour (px.r, px.g, px.b, px.a));
+            pixel->dst.setARGB (pixel->src.a, pixel->src.r, pixel->src.g, pixel->src.b);
+            ++pixel;
         }
     }
 
-    resvg_image_destroy (resvgImage);
-
     return image;
+}
+
+juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour)
+{
+    // Before rendering an SVG you need to have successfully loaded one into the tree
+    jassert (tree != nullptr);
+
+    auto imageSize = resvg_get_image_size (tree);
+
+    if (fit.type == RESVG_FIT_TO_ZOOM)
+    {
+        imageSize.width *= fit.value;
+        imageSize.height *= fit.value;
+    }
+
+    return renderTree (tree, fit, backgroundColour, juce::Rectangle<double> (imageSize.width, imageSize.height).toNearestIntEdges());
 }
 
 void initLog()
@@ -182,7 +199,7 @@ float RenderTree::getAspectRatio()
 
     auto size = resvg_get_image_size ((resvg_render_tree*) tree);
 
-    return size.width / static_cast<float> (size.height);
+    return static_cast<float> (size.width / size.height);
 }
 
 juce::Image RenderTree::render (juce::Colour backgroundColour)
@@ -197,25 +214,31 @@ juce::Image RenderTree::render (float zoomFactor, juce::Colour backgroundColour)
     return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
 }
 
-juce::Image RenderTree::render (const juce::Rectangle<float>& dstSize, juce::Colour backgroundColour)
+juce::Image RenderTree::render (juce::Rectangle<float> dstSize, juce::Colour backgroundColour)
 {
     auto dstAspectRatio = dstSize.getAspectRatio();
     auto srcAspectRatio = getAspectRatio();
 
     resvg_fit_to fit;
-    if (srcAspectRatio > dstAspectRatio)
+    if (srcAspectRatio < dstAspectRatio)
     {
         // The source image is wider than the destination image --> fit to height
         fit.type = RESVG_FIT_TO_HEIGHT;
         fit.value = dstSize.getHeight();
+
+        dstSize.setWidth (fit.value * srcAspectRatio);
     }
     else
     {
         fit.type = RESVG_FIT_TO_WIDTH;
         fit.value = dstSize.getWidth();
+
+        dstSize.setHeight (fit.value / srcAspectRatio);
     }
 
-    return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
+    jassert (fit.value >= 1.0f);
+
+    return renderTree ((resvg_render_tree*) tree, fit, backgroundColour, dstSize.toNearestIntEdges());
 }
 }
 }
