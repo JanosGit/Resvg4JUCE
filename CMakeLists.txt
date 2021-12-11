@@ -55,6 +55,11 @@ add_dependencies (resvg resvg_cargo_build)
 set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT})
 target_include_directories (resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api)
 
+# Seems like bcrypt is a dependency on Windows
+if (WIN32)
+    target_link_libraries (resvg INTERFACE bcrypt)
+endif()
+
 # Create the Resvg4JUCE juce module target. This depends on the resvg library created above and on the juce_gui_basics module
 juce_add_module (Modules/Resvg4JUCE)
 target_link_libraries (Resvg4JUCE INTERFACE resvg)
