@@ -9,6 +9,10 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "jb_ResvgRenderTree.h"
 
+#if JUCE_INTEL
+#include "immintrin.h"
+#endif
+
 #include <resvg.h>
 
 namespace jb
@@ -37,6 +41,77 @@ static_assert (RESVG_TEXT_RENDERING_OPTIMIZE_LEGIBILITY  == to<resvg_text_render
 static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_SPEED      == to<resvg_image_rendering> (ImageRenderingMode::optimizeSpeed), "");
 static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY    == to<resvg_image_rendering> (ImageRenderingMode::optimizeQuality), "");
 
+// Internal function to swap the red and blue component of a colour since resvg expects them swapped in comparison to juce
+juce::Colour swapRB (juce::Colour c)
+{
+    auto* asUint8 = reinterpret_cast<uint8_t*> (&c);
+
+    std::swap (asUint8[0], asUint8[2]);
+
+    return c;
+}
+
+constexpr int64_t bytesPerPixel = 4;
+
+// Swaps the red and blue compoment of an rgba image with a certain number of pixels via a for loop over all pixels
+void swapRBnonSIMD (uint8_t* data, int64_t numPixel)
+{
+    const auto* end = data + (bytesPerPixel * numPixel);
+
+    for (; data != end; data += bytesPerPixel)
+        std::swap (data[0], data[2]);
+}
+
+#if JUCE_INTEL
+// SSE optimized implementation of swapRB
+void swapRBSSE (uint8_t* data, int64_t numPixel)
+{
+    const auto* end = data + (bytesPerPixel * numPixel);
+    int64_t numBytes = end - data;
+
+    auto* simdAlignedData = juce::snapPointerToAlignment (data, sizeof (__m128i));
+
+    const int64_t numBytesPreSIMD = simdAlignedData - data;
+
+    if (numBytesPreSIMD % bytesPerPixel != 0)
+    {
+        swapRBnonSIMD (data, numPixel);
+        return;
+    }
+
+    swapRBnonSIMD (data, numBytesPreSIMD / bytesPerPixel);
+    numBytes -= numBytesPreSIMD;
+
+    const int64_t numBytesPostSIMD= numBytes % int (sizeof (__m128i));
+    const auto* endSIMD = simdAlignedData + (numBytes - numBytesPostSIMD);
+
+    __m128i shuffleMask = _mm_set_epi8 (15, 12, 13, 14,
+                                        11, 8,  9, 10,
+                                        7,  4,  5,  6,
+                                        3,  0,  1,  2);
+
+    for (; simdAlignedData != endSIMD; simdAlignedData += sizeof (__m128i))
+    {
+        auto in = _mm_load_si128 (reinterpret_cast<__m128i*> (simdAlignedData));
+        auto out = _mm_shuffle_epi8 (in, shuffleMask);
+        _mm_store_si128 (reinterpret_cast<__m128i*> (simdAlignedData), out);
+    }
+
+    swapRBnonSIMD (simdAlignedData, numBytesPostSIMD / bytesPerPixel);
+}
+
+void swapRB (uint8_t* data, int64_t numBytes)
+{
+    swapRBSSE (data, numBytes);
+}
+
+#else
+void swapRB (uint8_t* data, int64_t numBytes)
+{
+    swapRBnonSIMD (data, numBytes);
+}
+#endif
+
 // Internal function to perform the actual rendering behind the various RenderTree::render functions
 juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour, juce::Rectangle<int>&& imageBounds)
 {
@@ -46,8 +121,9 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
     const auto h = imageBounds.getHeight();
     const auto w = imageBounds.getWidth();
 
-    juce::Image image (juce::Image::PixelFormat::ARGB, w, h, false);
-    image.clear (imageBounds, backgroundColour);
+    juce::Image image (juce::Image::PixelFormat::ARGB, w, h, backgroundColour.isTransparent());
+
+    image.clear (imageBounds, swapRB (backgroundColour));
 
     juce::Image::BitmapData dstData (image, 0, 0, w, h, juce::Image::BitmapData::ReadWriteMode::writeOnly);
 
@@ -56,31 +132,8 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
                   static_cast<uint32_t> (h),
                   reinterpret_cast<char*> (dstData.data));
 
-    // This is how resvg lays out the pixel data
-    struct ResvgRGBA
-    {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-    };
-
-    union RGBAConversion
-    {
-        ResvgRGBA src;
-        juce::PixelARGB dst;
-    };
-
-    for (int y = 0; y < h; ++y)
-    {
-        auto *pixel = reinterpret_cast<RGBAConversion*> (dstData.getLinePointer (y));
-
-        for (int i = 0; i < w; ++i)
-        {
-            pixel->dst.setARGB (pixel->src.a, pixel->src.r, pixel->src.g, pixel->src.b);
-            ++pixel;
-        }
-    }
+    // Red and blue components have to be swapped since resvg orders them differently compared to juce
+    swapRB (dstData.data, static_cast<int64_t> (w) * static_cast<int64_t> (h));
 
     return image;
 }
