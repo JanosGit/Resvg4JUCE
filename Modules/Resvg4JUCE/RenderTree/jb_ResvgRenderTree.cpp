@@ -62,7 +62,7 @@ void swapRBnonSIMD (uint8_t* data, int64_t numPixel)
         std::swap (data[0], data[2]);
 }
 
-#if JUCE_INTEL
+#if JUCE_INTEL && defined (__SSSE3__)
 // SSE optimized implementation of swapRB
 void swapRBSSE (uint8_t* data, int64_t numPixel)
 {
@@ -257,13 +257,13 @@ float RenderTree::getAspectRatio()
 
 juce::Image RenderTree::render (juce::Colour backgroundColour)
 {
-    resvg_fit_to fit {resvg_fit_to_type::RESVG_FIT_TO_ORIGINAL};
+    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_ORIGINAL, 1.0f };
     return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
 }
 
 juce::Image RenderTree::render (float zoomFactor, juce::Colour backgroundColour)
 {
-    resvg_fit_to fit {resvg_fit_to_type::RESVG_FIT_TO_ZOOM, zoomFactor};
+    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_ZOOM, zoomFactor };
     return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
 }
 

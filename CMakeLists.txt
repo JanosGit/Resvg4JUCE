@@ -60,6 +60,10 @@ if (WIN32)
     target_link_libraries (resvg INTERFACE bcrypt)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options (resvg INTERFACE -mssse3)
+endif()
+
 # Create the Resvg4JUCE juce module target. This depends on the resvg library created above and on the juce_gui_basics module
 juce_add_module (Modules/Resvg4JUCE)
 target_link_libraries (Resvg4JUCE INTERFACE resvg)
