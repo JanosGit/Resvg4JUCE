@@ -67,13 +67,13 @@ public:
     RenderTree();
 
     /** Creates a render tree with a custom DPI preference */
-    RenderTree (double dpi);
+    explicit RenderTree (double dpi);
 
     /** Creates a render tree with custom options */
-    RenderTree (const Options& renderingOptions);
+    explicit RenderTree (const Options& renderingOptions);
 
     /** Moves constructor */
-    RenderTree (RenderTree&& other);
+    RenderTree (RenderTree&& other) noexcept;
 
     ~RenderTree();
 
