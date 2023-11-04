@@ -42,7 +42,7 @@ static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_SPEED      == to<resvg_image_rende
 static_assert (RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY    == to<resvg_image_rendering> (ImageRenderingMode::optimizeQuality), "");
 
 // Internal function to swap the red and blue component of a colour since resvg expects them swapped in comparison to juce
-juce::Colour swapRB (juce::Colour c)
+static juce::Colour swapRB (juce::Colour c)
 {
     auto* asUint8 = reinterpret_cast<uint8_t*> (&c);
 
@@ -54,7 +54,7 @@ juce::Colour swapRB (juce::Colour c)
 constexpr int64_t bytesPerPixel = 4;
 
 // Swaps the red and blue compoment of an rgba image with a certain number of pixels via a for loop over all pixels
-void swapRBnonSIMD (uint8_t* data, int64_t numPixel)
+static void swapRBnonSIMD (uint8_t* data, int64_t numPixel)
 {
     const auto* end = data + (bytesPerPixel * numPixel);
 
@@ -64,7 +64,7 @@ void swapRBnonSIMD (uint8_t* data, int64_t numPixel)
 
 #if JUCE_INTEL && defined (__SSSE3__)
 // SSE optimized implementation of swapRB
-void swapRBSSE (uint8_t* data, int64_t numPixel)
+static void swapRBSSE (uint8_t* data, int64_t numPixel)
 {
     const auto* end = data + (bytesPerPixel * numPixel);
     int64_t numBytes = end - data;
@@ -100,20 +100,20 @@ void swapRBSSE (uint8_t* data, int64_t numPixel)
     swapRBnonSIMD (simdAlignedData, numBytesPostSIMD / bytesPerPixel);
 }
 
-void swapRB (uint8_t* data, int64_t numBytes)
+static void swapRB (uint8_t* data, int64_t numBytes)
 {
     swapRBSSE (data, numBytes);
 }
 
 #else
-void swapRB (uint8_t* data, int64_t numBytes)
+static void swapRB (uint8_t* data, int64_t numBytes)
 {
     swapRBnonSIMD (data, numBytes);
 }
 #endif
 
 // Internal function to perform the actual rendering behind the various RenderTree::render functions
-juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour, juce::Rectangle<int>&& imageBounds)
+static juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour, juce::Rectangle<int>&& imageBounds)
 {
     // Before rendering an SVG you need to have successfully loaded one into the tree
     jassert (tree != nullptr);
@@ -138,7 +138,7 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
     return image;
 }
 
-juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour)
+static juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour backgroundColour)
 {
     // Before rendering an SVG you need to have successfully loaded one into the tree
     jassert (tree != nullptr);
@@ -178,7 +178,7 @@ RenderTree::RenderTree (const Options& renderingOptions) : RenderTree()
     resvg_options_set_image_rendering_mode ((resvg_options*) options, to<resvg_image_rendering> (renderingOptions.imageRendering));
 }
 
-RenderTree::RenderTree (RenderTree&& other)
+RenderTree::RenderTree (RenderTree&& other) noexcept
   : options (other.options),
     tree    (other.tree)
 {
