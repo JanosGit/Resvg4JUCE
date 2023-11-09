@@ -127,7 +127,7 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
 
     juce::Image::BitmapData dstData (image, 0, 0, w, h, juce::Image::BitmapData::ReadWriteMode::writeOnly);
 
-    resvg_render (tree, fit,
+    resvg_render (tree, fit, resvg_transform_identity(),
                   static_cast<uint32_t> (w),
                   static_cast<uint32_t> (h),
                   reinterpret_cast<char*> (dstData.data));
@@ -145,7 +145,7 @@ juce::Image renderTree (resvg_render_tree* tree, resvg_fit_to fit, juce::Colour 
 
     auto imageSize = resvg_get_image_size (tree);
 
-    if (fit.type == RESVG_FIT_TO_ZOOM)
+    if (fit.type == RESVG_FIT_TO_TYPE_ZOOM)
     {
         imageSize.width *= fit.value;
         imageSize.height *= fit.value;
@@ -198,7 +198,7 @@ RenderTree::~RenderTree ()
 bool RenderTree::loadFromFile (const juce::File& svgFile)
 {
     jassert (svgFile.existsAsFile());
-    auto fullPath = svgFile.getFullPathName();
+    auto& fullPath = svgFile.getFullPathName();
 
     if (tree != nullptr)
         resvg_tree_destroy ((resvg_render_tree*) tree);
@@ -208,24 +208,34 @@ bool RenderTree::loadFromFile (const juce::File& svgFile)
     if (result != RESVG_OK || tree == nullptr)
     {
         tree = nullptr;
+        size = { 0, 0 };
         return false;
     }
+
+    auto imageSize = resvg_get_image_size ((resvg_render_tree*) tree);
+
+    size = { static_cast<int> (imageSize.width), static_cast<int> (imageSize.height) };
 
     return true;
 }
 
-bool RenderTree::loadFromBinaryData (const char* data, int size)
+bool RenderTree::loadFromBinaryData (const char* data, int numBytes)
 {
     if (tree != nullptr)
         resvg_tree_destroy ((resvg_render_tree*) tree);
 
-    auto result = resvg_parse_tree_from_data (data, static_cast<size_t>(size), (resvg_options*) options, (resvg_render_tree**) &tree);
+    auto result = resvg_parse_tree_from_data (data, static_cast<size_t> (numBytes), (resvg_options*) options, (resvg_render_tree**) &tree);
 
     if (result != RESVG_OK || tree == nullptr)
     {
         tree = nullptr;
+        size = { 0, 0 };
         return false;
     }
+
+    auto imageSize = resvg_get_image_size ((resvg_render_tree*) tree);
+
+    size = { static_cast<int> (imageSize.width), static_cast<int> (imageSize.height) };
 
     return true;
 }
@@ -237,12 +247,7 @@ bool RenderTree::isValid()
 
 juce::Rectangle<int> RenderTree::getSize()
 {
-    if (tree == nullptr)
-        return {};
-
-    auto size = resvg_get_image_size ((resvg_render_tree*) tree);
-
-    return { static_cast<int> (size.width), static_cast<int> (size.height) };
+    return size;
 }
 
 float RenderTree::getAspectRatio()
@@ -250,20 +255,18 @@ float RenderTree::getAspectRatio()
     if (tree == nullptr)
         return -1.0f;
 
-    auto size = resvg_get_image_size ((resvg_render_tree*) tree);
-
-    return static_cast<float> (size.width / size.height);
+    return size.toFloat().getAspectRatio();
 }
 
 juce::Image RenderTree::render (juce::Colour backgroundColour)
 {
-    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_ORIGINAL, 1.0f };
+    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_TYPE_ORIGINAL, 1.0f };
     return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
 }
 
 juce::Image RenderTree::render (float zoomFactor, juce::Colour backgroundColour)
 {
-    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_ZOOM, zoomFactor };
+    resvg_fit_to fit { resvg_fit_to_type::RESVG_FIT_TO_TYPE_ZOOM, zoomFactor };
     return renderTree ((resvg_render_tree*) tree, fit, backgroundColour);
 }
 
@@ -276,14 +279,14 @@ juce::Image RenderTree::render (juce::Rectangle<float> dstSize, juce::Colour bac
     if (srcAspectRatio < dstAspectRatio)
     {
         // The source image is wider than the destination image --> fit to height
-        fit.type = RESVG_FIT_TO_HEIGHT;
+        fit.type = RESVG_FIT_TO_TYPE_HEIGHT;
         fit.value = dstSize.getHeight();
 
         dstSize.setWidth (fit.value * srcAspectRatio);
     }
     else
     {
-        fit.type = RESVG_FIT_TO_WIDTH;
+        fit.type = RESVG_FIT_TO_TYPE_WIDTH;
         fit.value = dstSize.getWidth();
 
         dstSize.setHeight (fit.value / srcAspectRatio);

@@ -12,52 +12,57 @@ cmake_minimum_required (VERSION 3.16)
 
 project (RESVG4JUCE VERSION 0.2.0)
 
-# Some CMake exporters (e.g. ninja) need a dummy library file to be present before the 
-# build target referencing this file and triggering the prior build has been executed.
-# Therefore we create a dummy library output file here first
-set (RESVG_LIB_OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/target/release)
-
-if (WIN32)
-    set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/resvg.lib)
-else()
-    set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
-endif()
-
-file (MAKE_DIRECTORY ${RESVG_LIB_OUTPUT_DIR})
-file (TOUCH ${RESVG_LIB_OUTPUT})
+set (RESVG_LIB_OUTPUT_DIR ${CMAKE_BINARY_DIR}/resvg)
 
 # The target to trigger the rust cargo based compilation of the resvg library used.
 # For macOS we need to ensure the C-Parts of it being built for the right deployment
 # target by setting an environment variable first
 if (APPLE)
-    add_custom_target (resvg_cargo_build_arm64
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo build --release --target aarch64-apple-darwin)
+    add_custom_command (
+            DEPENDS ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api/resvg.h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api
+            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.9 cargo build --release --target aarch64-apple-darwin --target-dir ${RESVG_LIB_OUTPUT_DIR}
+            OUTPUT ${RESVG_LIB_OUTPUT_DIR}/aarch64-apple-darwin/release/libresvg.a)
 
-    add_custom_target (resvg_cargo_build_x86_64
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.7 cargo build --release --target x86_64-apple-darwin)
+    add_custom_command (
+            DEPENDS ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api/resvg.h
+            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api
+            COMMAND ${CMAKE_COMMAND} -E env MACOSX_DEPLOYMENT_TARGET=10.9 cargo build --release --target x86_64-apple-darwin --target-dir ${RESVG_LIB_OUTPUT_DIR}
+            OUTPUT ${RESVG_LIB_OUTPUT_DIR}/x86_64-apple-darwin/release/libresvg.a)
 
-    add_custom_target (resvg_cargo_build
+    add_custom_target (resvg_build
+            DEPENDS ${RESVG_LIB_OUTPUT_DIR}/aarch64-apple-darwin/release/libresvg.a ${RESVG_LIB_OUTPUT_DIR}/x86_64-apple-darwin/release/libresvg.a
             WORKING_DIRECTORY ${RESVG_LIB_OUTPUT_DIR}
-            COMMAND lipo -create -output libresvg.a ../aarch64-apple-darwin/release/libresvg.a ../x86_64-apple-darwin/release/libresvg.a)
+            COMMAND lipo -create -output ./libresvg.a aarch64-apple-darwin/release/libresvg.a x86_64-apple-darwin/release/libresvg.a)
 
-    add_dependencies (resvg_cargo_build resvg_cargo_build_arm64 resvg_cargo_build_x86_64)
+    set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/libresvg.a)
+    file (MAKE_DIRECTORY ${RESVG_LIB_OUTPUT_DIR})
 else()
-     add_custom_target (resvg_cargo_build
-            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api
-            COMMAND cargo build --release)
+     add_custom_target (resvg_build
+            WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api
+            COMMAND cargo build --release --target-dir ${RESVG_LIB_OUTPUT_DIR})
+
+     set (RESVG_LIB_OUTPUT ${RESVG_LIB_OUTPUT_DIR}/release/resvg.lib)
+     file (MAKE_DIRECTORY ${RESVG_LIB_OUTPUT_DIR}/release)
 endif()
 
-# Make an imported targe that references the library just built
-add_library (resvg STATIC IMPORTED)
-add_dependencies (resvg resvg_cargo_build)
-set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT})
-target_include_directories (resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/c-api)
+# Some CMake exporters (e.g. ninja) need a dummy library file to be present before the
+# build target referencing this file and triggering the prior build has been executed.
+# Therefore we create a dummy library output file here first
+file (TOUCH ${RESVG_LIB_OUTPUT})
 
-# Seems like bcrypt is a dependency on Windows
+# Make an imported target that references the library just built
+add_library (resvg STATIC IMPORTED)
+add_dependencies (resvg resvg_build)
+set_target_properties (resvg PROPERTIES IMPORTED_LOCATION ${RESVG_LIB_OUTPUT})
+target_include_directories (resvg INTERFACE ${CMAKE_CURRENT_LIST_DIR}/Ext/resvg/crates/c-api)
+
+# Seems like bcrypt and ntdll are dependencies on Windows
 if (WIN32)
-    target_link_libraries (resvg INTERFACE bcrypt)
+    target_link_libraries (resvg
+        INTERFACE
+            bcrypt
+            ntdll)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")

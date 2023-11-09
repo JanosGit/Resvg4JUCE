@@ -81,7 +81,7 @@ public:
     bool loadFromFile (const juce::File& svgFile);
 
     /** Parses an SVG file from binary data into this tree. Returns true on success, false otherwise */
-    bool loadFromBinaryData (const char* data, int size);
+    bool loadFromBinaryData (const char* data, int numBytes);
 
     /** Returns true if a file has been successfully loaded into this tree */
     bool isValid();
@@ -116,7 +116,9 @@ private:
 
     // Using void pointers to not expose resvg types to the public interface
     void* options = nullptr;
-    void *tree = nullptr;
+    void* tree = nullptr;
+
+    juce::Rectangle<int> size;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RenderTree)
 };
