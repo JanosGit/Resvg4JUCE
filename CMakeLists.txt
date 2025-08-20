@@ -61,7 +61,10 @@ if (WIN32)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options (resvg INTERFACE -mssse3)
+    # Only apply SSE3 optimization to x86 architectures
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64|AMD64|i686)")
+        target_compile_options (resvg INTERFACE -mssse3)
+    endif()
 endif()
 
 # Create the Resvg4JUCE juce module target. This depends on the resvg library created above and on the juce_gui_basics module
